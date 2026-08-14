@@ -20,6 +20,7 @@ RUN apt-get update \
 WORKDIR /app
 
 COPY --from=builder /app/target/release/jonahbox /usr/local/bin/jonahbox
+RUN touch config.toml
 
 EXPOSE 4343 38203 8080
 
