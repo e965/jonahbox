@@ -1,0 +1,13 @@
+services:
+  jonahbox:
+    build: .
+    ports:
+      - "4343:4343"
+      - "38203:38203"
+      - "8080:8080"
+    volumes:
+      - ./config.toml:/app/config.toml:ro
+      - ./certs:/app/certs:ro
+      - ./jb_cache:/app/jb_cache
+      - ./doodle_renders:/app/doodle_renders
+      - ./tts:/app/tts

@@ -62,6 +62,18 @@ cargo run --release
 
 Or look in [releases](releases) for a binary.
 
+### Docker
+
+First configure `config.toml`; the default relative paths work inside `/app`.
+For a non-interactive container, set `tui = false`.
+
+```shell
+docker compose up --build
+```
+
+The ports must match `[ports]` in `config.toml`. Native TTS additionally
+requires `piper` and `ffmpeg` in the image, plus a mounted `voices` directory.
+
 ### TTS
 
 Mad Verse City and FixyText require a tts endpoint in order to generate the audio for the raps/the text messages. In native mode, this can be done using the [piper](https://github.com/rhasspy/piper) project. First set that up, then go [here](https://github.com/rhasspy/piper/blob/master/VOICES.md) and download the voices and their associated config files to the `voices_path` (Note that the expected name for config files is {voice}.onnx.json, and that it's not named that already). Voices are chosen at random from the `voices_path`, but they will be consistent for each player. You will also need [ffmpeg](https://ffmpeg.org/) installed.

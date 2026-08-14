@@ -1,0 +1,8 @@
+.env
+.git
+target
+certs
+jb_cache
+doodle_renders
+tts
+voices
