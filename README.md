@@ -64,15 +64,16 @@ Or look in [releases](releases) for a binary.
 
 ### Docker
 
-First configure `config.toml`; the default relative paths work inside `/app`.
-For a non-interactive container, set `tui = false`.
+Pass the configuration file when starting the container. The image contains no
+configuration; the file is mounted at `/app/config.toml`.
 
 ```shell
-docker compose up --build
+JONAHBOX_CONFIG_PATH=/path/to/config.toml docker compose up --build
 ```
 
-The ports must match `[ports]` in `config.toml`. Native TTS additionally
-requires `piper` and `ffmpeg` in the image, plus a mounted `voices` directory.
+The ports must match `[ports]` in the supplied configuration. Native TTS
+additionally requires `piper` and `ffmpeg` in the image, plus a mounted
+`voices` directory.
 
 ### Reverse proxy
 

@@ -5,9 +5,15 @@ services:
       - "4343:4343"
       - "38203:38203"
       - "8080:8080"
+    configs:
+      - source: jonahbox_config
+        target: /app/config.toml
     volumes:
-      - ./config.toml:/app/config.toml:ro
       - ./certs:/app/certs:ro
       - ./jb_cache:/app/jb_cache
       - ./doodle_renders:/app/doodle_renders
       - ./tts:/app/tts
+
+configs:
+  jonahbox_config:
+    file: ${JONAHBOX_CONFIG_PATH:?Set JONAHBOX_CONFIG_PATH to your config.toml path}
