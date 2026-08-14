@@ -9,7 +9,7 @@ RUN mkdir src \
     && rm -rf src
 
 COPY src ./src
-RUN cargo build --release --locked
+RUN touch src/main.rs && cargo build --release --locked
 
 FROM debian:bookworm-slim
 
