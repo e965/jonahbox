@@ -5,3 +5,5 @@
 /jb_cache
 /voices
 *log
+
+config.toml

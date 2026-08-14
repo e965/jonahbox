@@ -77,12 +77,15 @@ server_url = "https://blobcast.jackboxgames.com"
 # Make sure these certificates are registered with your system.
 # If you can access the server through a web browser with no security
 # warnings, it should work.
+# Remove this section and leave `https` unset below when TLS terminates at a
+# reverse proxy.
 [tls]
 cert = "certs/192.168.1.10.pem"
 key = "certs/192.168.1.10-key.pem"
 
 # These defaults are the ports that the Jackbox games will try to connect to
 [ports]
+# Leave this unset when TLS terminates at a reverse proxy.
 https = 4343
 blobcast = 38203
 http = 8080

@@ -149,7 +149,7 @@ struct Config {
     doodles: DoodleConfig,
     ecast: Ecast,
     blobcast: Ecast,
-    tls: Tls,
+    tls: Option<Tls>,
     tts: TTSConfig,
     tui: bool,
     ports: Ports,
@@ -186,7 +186,7 @@ struct TTSConfig {
 
 #[derive(Deserialize, Clone, Copy)]
 struct Ports {
-    https: u16,
+    https: Option<u16>,
     blobcast: u16,
     http: u16,
 }
@@ -412,9 +412,20 @@ async fn main() -> eyre::Result<()> {
     let config: Config =
         toml::from_str(&config_file).wrap_err("Failed to deserialize config.toml")?;
 
-    let tls_config = RustlsConfig::from_pem_file(&config.tls.cert, &config.tls.key)
-        .await
-        .wrap_err_with(|| format!("TLS Config failed: {:?}", config.tls))?;
+    let tls_config = match (&config.tls, config.ports.https) {
+        (Some(tls), Some(_)) => Some(
+            RustlsConfig::from_pem_file(&tls.cert, &tls.key)
+                .await
+                .wrap_err_with(|| format!("TLS Config failed: {tls:?}"))?,
+        ),
+        (None, None) => None,
+        (Some(_), None) => {
+            return Err(eyre::eyre!("`ports.https` is required when TLS is configured"));
+        }
+        (None, Some(_)) => {
+            return Err(eyre::eyre!("TLS is required when `ports.https` is configured"));
+        }
+    };
 
     let fragment_regex = RegexBuilder::new("blobcast.jackboxgames.com|ecast.jackboxgames.com|bundles.jackbox.tv|uuid.jackbox.tv|jackbox.tv|cdn.jackboxgames.com|s3.amazonaws.com")
         .build()
@@ -508,8 +519,6 @@ async fn main() -> eyre::Result<()> {
         .layer(TraceLayer::new_for_http())
         .with_state(state);
 
-    let addr = SocketAddr::V6(SocketAddrV6::new(Ipv6Addr::UNSPECIFIED, ports.https, 0, 0));
-    tracing::info!("Ecast listening on {}", addr);
     let blobcast_addr = SocketAddr::V6(SocketAddrV6::new(
         Ipv6Addr::UNSPECIFIED,
         ports.blobcast,
@@ -519,18 +528,37 @@ async fn main() -> eyre::Result<()> {
     tracing::info!("Blobcast listening on {}", blobcast_addr);
     let http_addr = SocketAddr::V6(SocketAddrV6::new(Ipv6Addr::UNSPECIFIED, ports.http, 0, 0));
     tracing::info!("Ecast (insecure) listening on {}", http_addr);
-    tokio::try_join!(
-        axum_server::bind_rustls(addr, tls_config.clone())
-            .handle(handle.clone())
-            .serve(app.clone().into_make_service()),
-        axum_server::bind_rustls(blobcast_addr, tls_config)
-            .handle(handle.clone())
-            .serve(app.clone().into_make_service()),
-        axum_server::bind(http_addr)
-            .handle(handle)
-            .serve(app.into_make_service()),
-        tui_future,
-    )?;
+    if let (Some(tls_config), Some(https_port)) = (tls_config, ports.https) {
+        let addr = SocketAddr::V6(SocketAddrV6::new(
+            Ipv6Addr::UNSPECIFIED,
+            https_port,
+            0,
+            0,
+        ));
+        tracing::info!("Ecast listening on {}", addr);
+        tokio::try_join!(
+            axum_server::bind_rustls(addr, tls_config.clone())
+                .handle(handle.clone())
+                .serve(app.clone().into_make_service()),
+            axum_server::bind_rustls(blobcast_addr, tls_config)
+                .handle(handle.clone())
+                .serve(app.clone().into_make_service()),
+            axum_server::bind(http_addr)
+                .handle(handle)
+                .serve(app.into_make_service()),
+            tui_future,
+        )?;
+    } else {
+        tokio::try_join!(
+            axum_server::bind(blobcast_addr)
+                .handle(handle.clone())
+                .serve(app.clone().into_make_service()),
+            axum_server::bind(http_addr)
+                .handle(handle)
+                .serve(app.into_make_service()),
+            tui_future,
+        )?;
+    }
 
     Ok(())
 }
@@ -602,4 +630,16 @@ pub fn room_id() -> String {
     let mut code = nanoid::nanoid!(4, &ALPHA_CAPITAL, random);
     code.make_ascii_uppercase();
     code
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Ports;
+
+    #[test]
+    fn reverse_proxy_config_allows_no_https_port() {
+        let ports: Ports = toml::from_str("blobcast = 38203\nhttp = 8080").unwrap();
+
+        assert_eq!(ports.https, None);
+    }
 }
